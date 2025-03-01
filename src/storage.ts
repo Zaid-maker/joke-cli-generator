@@ -2,11 +2,18 @@ import Conf from "conf";
 import type { Joke, Rating, StorageData } from "./types/index.js";
 import { getCurrentUTCDateTime } from "./utils/dateTime.js";
 import { CONFIG_DIR, STORAGE_FILE } from "./utils/config.js";
+import { mkdir } from "fs/promises";
+
+// Ensure the data directory exists
+try {
+  await mkdir(CONFIG_DIR, { recursive: true });
+} catch (error) {
+  // Directory might already exist, that's okay
+}
 
 const config = new Conf<StorageData>({
-  projectName: "joke-cli",
   cwd: CONFIG_DIR,
-  configName: STORAGE_FILE,
+  configName: "ratings",
   fileExtension: "json",
   accessPropertiesByDotNotation: true,
   schema: {
