@@ -14,4 +14,5 @@ export interface Rating {
 
 export interface StorageData {
   ratings: Rating[];
+  lastUser?: string; // Add this to optionally remember the last user
 }

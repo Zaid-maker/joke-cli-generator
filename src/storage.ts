@@ -38,15 +38,23 @@ const config = new Conf<StorageData>({
       },
       default: [],
     },
+    lastUser: {
+      type: "string",
+      default: "",
+    },
   },
 });
 
-export function saveRating(jokeData: Joke, rating: number): Rating[] {
+export function saveRating(
+  jokeData: Joke,
+  rating: number,
+  username: string
+): Rating[] {
   try {
     const currentRatings = config.get("ratings") as Rating[];
     const newRating: Rating = {
       timestamp: getCurrentUTCDateTime(),
-      user: process.env.USER || "Zaid-maker", // Default to provided user
+      user: username,
       joke: jokeData,
       rating: rating,
     };
@@ -54,17 +62,19 @@ export function saveRating(jokeData: Joke, rating: number): Rating[] {
     const updatedRatings = [...currentRatings, newRating];
     config.set("ratings", updatedRatings);
 
-    // Verify the save was successful
-    const savedRatings = config.get("ratings") as Rating[];
-    if (savedRatings.length !== updatedRatings.length) {
-      throw new Error("Rating was not saved correctly");
-    }
-
     return updatedRatings;
   } catch (error) {
     console.error("Error saving rating:", error);
     throw error;
   }
+}
+
+export function getLastUser(): string | undefined {
+  return config.get("lastUser") as string | undefined;
+}
+
+export function saveLastUser(username: string): void {
+  config.set("lastUser", username);
 }
 
 export function getRatings(): Rating[] {
