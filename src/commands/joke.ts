@@ -4,35 +4,72 @@ import readline from "readline";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { saveRating, getAverageRating, checkStorage } from "../storage.js";
+import {
+  saveRating,
+  getAverageRating,
+  checkStorage,
+  getLastUser,
+  saveLastUser,
+} from "../storage.js";
 import { getCurrentUTCDateTime } from "../utils/dateTime.js";
 import { CONFIG_DIR } from "../utils/config.js";
 import type { Joke } from "../types/index.js";
 
-// Get project root directory for relative paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, "..", "..");
 
-async function getRating(joke: Joke): Promise<number> {
+async function promptUser(question: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
   return new Promise((resolve) => {
-    rl.question(chalk.blue("\nRate this joke (1-10): "), (answer: string) => {
-      const rating = parseInt(answer);
+    rl.question(chalk.blue(question), (answer: string) => {
       rl.close();
-
-      if (isNaN(rating) || rating < 1 || rating > 10) {
-        console.log(chalk.red("Please enter a valid rating between 1 and 10"));
-        resolve(getRating(joke));
-      } else {
-        resolve(rating);
-      }
+      resolve(answer.trim());
     });
   });
+}
+
+async function getUserName(): Promise<string> {
+  const lastUser = getLastUser();
+  let username = "";
+
+  if (lastUser) {
+    const useLastUser = await promptUser(
+      chalk.yellow(
+        `Welcome back! Would you like to continue as ${lastUser}? (y/n): `
+      )
+    );
+
+    if (useLastUser.toLowerCase() === "y") {
+      return lastUser;
+    }
+  }
+
+  while (!username) {
+    username = await promptUser("\nPlease enter your name: ");
+    if (!username) {
+      console.log(chalk.red("Username cannot be empty!"));
+    }
+  }
+
+  saveLastUser(username);
+  return username;
+}
+
+async function getRating(joke: Joke): Promise<number> {
+  const rating = await promptUser("\nRate this joke (1-10): ");
+  const ratingNum = parseInt(rating);
+
+  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 10) {
+    console.log(chalk.red("Please enter a valid rating between 1 and 10"));
+    return getRating(joke);
+  }
+
+  return ratingNum;
 }
 
 export async function fetchAndRateJoke(): Promise<void> {
@@ -67,18 +104,21 @@ export async function fetchAndRateJoke(): Promise<void> {
     console.log(chalk.yellow("🎭 Random Joke 🎭"));
     console.log(chalk.cyan("════════════════════════════════"));
     console.log(chalk.gray(`Time: ${getCurrentUTCDateTime()}`));
-    console.log(chalk.gray(`User: ${process.env.USER || "anonymous"}`));
     console.log(chalk.cyan("────────────────────────────────"));
     console.log(chalk.white("Setup: ") + chalk.green(joke.setup));
     console.log(chalk.white("Punchline: ") + chalk.green(joke.punchline));
     console.log(chalk.cyan("────────────────────────────────"));
 
-    // Get rating from user (without spinner)
+    // Get username
+    const username = await getUserName();
+    console.log(chalk.green(`\nRating as: ${username}`));
+
+    // Get rating from user
     const rating = await getRating(joke);
 
     // Save rating with spinner
     spinner = ora("Saving your rating...").start();
-    saveRating(joke, rating);
+    saveRating(joke, rating, username);
     const avgRating = getAverageRating(joke.setup);
     spinner.succeed("Rating saved successfully!");
 
