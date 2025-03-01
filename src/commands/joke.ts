@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import readline from "readline";
-import { saveRating, getAverageRating } from "../storage.js";
+import { saveRating, getAverageRating, checkStorage } from "../storage.js";
 import { getCurrentUTCDateTime } from "../utils/dateTime.js";
 import type { Joke } from "../types/index.js";
 
@@ -27,6 +27,17 @@ async function getRating(joke: Joke): Promise<number> {
 }
 
 export async function fetchAndRateJoke(): Promise<void> {
+  // Verify storage is working
+  const storageCheck = checkStorage();
+  if (!storageCheck) {
+    console.error(
+      chalk.red(
+        "Storage system is not working properly. Ratings will not be saved."
+      )
+    );
+    return;
+  }
+
   const spinner = ora("Fetching a joke...").start();
 
   try {
@@ -44,22 +55,35 @@ export async function fetchAndRateJoke(): Promise<void> {
     console.log(chalk.yellow("🎭 Random Joke 🎭"));
     console.log(chalk.cyan("════════════════════════════════"));
     console.log(chalk.gray(`Time: ${getCurrentUTCDateTime()}`));
-    console.log(chalk.gray(`User: ${process.env.USER || "anonymous"}`));
+    console.log(chalk.gray(`User: ${process.env.USER || "Zaid-maker"}`));
     console.log(chalk.cyan("────────────────────────────────"));
     console.log(chalk.white("Setup: ") + chalk.green(joke.setup));
     console.log(chalk.white("Punchline: ") + chalk.green(joke.punchline));
     console.log(chalk.cyan("────────────────────────────────"));
 
     const rating = await getRating(joke);
-    saveRating(joke, rating);
-    const avgRating = getAverageRating(joke.setup);
 
-    console.log(chalk.green("\n✅ Rating saved successfully!"));
-    console.log(
-      chalk.yellow(
-        `Average rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
-      )
-    );
+    try {
+      saveRating(joke, rating);
+      const avgRating = getAverageRating(joke.setup);
+
+      console.log(chalk.green("\n✅ Rating saved successfully!"));
+      console.log(
+        chalk.yellow(
+          `Average rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
+        )
+      );
+
+      // Display storage location
+      console.log(
+        chalk.gray("\nRatings are stored in: ~/.config/joke-cli/ratings.json")
+      );
+    } catch (error) {
+      console.error(
+        chalk.red("\nFailed to save rating:"),
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    }
   } catch (error) {
     spinner.fail("Failed to fetch joke");
     console.error(
