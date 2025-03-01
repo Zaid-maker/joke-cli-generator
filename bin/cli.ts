@@ -5,6 +5,7 @@ import figlet from "figlet";
 import chalk from "chalk";
 import { fetchAndRateJoke } from "../src/commands/joke.js";
 import { viewRatings } from "../src/commands/ratings.js";
+import { debugStorage } from "../src/commands/debug.js";
 
 const program = new Command();
 
@@ -35,6 +36,11 @@ const main = async (): Promise<void> => {
     .command("ratings")
     .description("View your joke rating history")
     .action(viewRatings);
+
+  program
+    .command("debug")
+    .description("Run storage diagnostics")
+    .action(debugStorage);
 
   program.parse(process.argv);
 
