@@ -36,25 +36,25 @@ async function getRating(joke: Joke): Promise<number> {
 }
 
 export async function fetchAndRateJoke(): Promise<void> {
-  // Verify storage is working
-  const spinner = ora("Checking storage...").start();
-  const storageCheck = checkStorage();
-
-  if (!storageCheck) {
-    spinner.fail(
-      "Storage system is not working properly. Ratings will not be saved."
-    );
-    return;
-  }
-  spinner.succeed("Storage system ready");
-
-  // Fetch joke
-  spinner.start("Fetching a joke...");
+  let spinner = ora("Checking storage...").start();
 
   try {
+    // Verify storage is working
+    const storageCheck = checkStorage();
+    if (!storageCheck) {
+      spinner.fail(
+        "Storage system is not working properly. Ratings will not be saved."
+      );
+      return;
+    }
+    spinner.succeed("Storage system ready");
+
+    // Fetch joke
+    spinner = ora("Fetching a joke...").start();
     const response = await fetch(
       "https://official-joke-api.appspot.com/random_joke"
     );
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -67,58 +67,51 @@ export async function fetchAndRateJoke(): Promise<void> {
     console.log(chalk.yellow("🎭 Random Joke 🎭"));
     console.log(chalk.cyan("════════════════════════════════"));
     console.log(chalk.gray(`Time: ${getCurrentUTCDateTime()}`));
-    console.log(chalk.gray(`User: ${process.env.USER || "Zaid-maker"}`));
+    console.log(chalk.gray(`User: ${process.env.USER || "anonymous"}`));
     console.log(chalk.cyan("────────────────────────────────"));
     console.log(chalk.white("Setup: ") + chalk.green(joke.setup));
     console.log(chalk.white("Punchline: ") + chalk.green(joke.punchline));
     console.log(chalk.cyan("────────────────────────────────"));
 
-    // Get and save rating
-    spinner.start("Saving rating...");
+    // Get rating from user (without spinner)
     const rating = await getRating(joke);
 
-    try {
-      saveRating(joke, rating);
-      const avgRating = getAverageRating(joke.setup);
-      spinner.succeed("Rating saved successfully!");
+    // Save rating with spinner
+    spinner = ora("Saving your rating...").start();
+    saveRating(joke, rating);
+    const avgRating = getAverageRating(joke.setup);
+    spinner.succeed("Rating saved successfully!");
 
-      console.log(
-        chalk.yellow(
-          `\nAverage rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
-        )
-      );
+    // Display results
+    console.log(
+      chalk.yellow(
+        `\nAverage rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
+      )
+    );
 
-      // Display storage location relative to project root
-      const storageLocation = relative(
-        projectRoot,
-        join(CONFIG_DIR, "ratings.json")
-      );
-      console.log(chalk.gray(`\nRatings are stored in: ${storageLocation}`));
+    // Display storage location relative to project root
+    const storageLocation = relative(
+      projectRoot,
+      join(CONFIG_DIR, "ratings.json")
+    );
+    console.log(chalk.gray(`\nRatings are stored in: ${storageLocation}`));
 
-      // Display helpful commands
-      console.log(chalk.cyan("\nHelpful commands:"));
-      console.log(
-        chalk.gray("• View all ratings: ") +
-          chalk.white("bun run start ratings")
-      );
-      console.log(
-        chalk.gray("• Get another joke: ") + chalk.white("bun run start get")
-      );
-      console.log(
-        chalk.gray("• Check storage: ") + chalk.white("bun run start debug")
-      );
-    } catch (error) {
-      spinner.fail("Failed to save rating");
-      console.error(
-        chalk.red("\nError details:"),
-        error instanceof Error ? error.message : "Unknown error"
-      );
-    }
+    // Display helpful commands
+    console.log(chalk.cyan("\nHelpful commands:"));
+    console.log(
+      chalk.gray("• View all ratings: ") + chalk.white("bun run start ratings")
+    );
+    console.log(
+      chalk.gray("• Get another joke: ") + chalk.white("bun run start get")
+    );
+    console.log(
+      chalk.gray("• Check storage: ") + chalk.white("bun run start debug")
+    );
   } catch (error) {
-    spinner.fail("Failed to fetch joke");
+    spinner.fail("An error occurred");
     console.error(
-      chalk.red("Error:"),
-      error instanceof Error ? error.message : "Unknown error occurred"
+      chalk.red("Error details:"),
+      error instanceof Error ? error.message : "Unknown error"
     );
   }
 }
