@@ -2,7 +2,13 @@ import chalk from "chalk";
 import { CONFIG_DIR, STORAGE_FILE } from "../utils/config.js";
 import { checkStorage } from "../storage.js";
 import { access, constants, mkdir } from "fs/promises";
-import { join } from "path";
+import { join, relative } from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, "..", "..");
 
 export async function debugStorage(): Promise<void> {
   console.log(chalk.cyan("\n🔍 Running Storage Diagnostics"));
@@ -11,16 +17,16 @@ export async function debugStorage(): Promise<void> {
   // Check config directory
   try {
     await access(CONFIG_DIR, constants.R_OK | constants.W_OK);
-    console.log(chalk.green("✓ Config directory exists and is accessible"));
+    console.log(chalk.green("✓ Data directory exists and is accessible"));
   } catch (error) {
     console.log(
-      chalk.yellow("! Config directory not found, attempting to create...")
+      chalk.yellow("! Data directory not found, attempting to create...")
     );
     try {
       await mkdir(CONFIG_DIR, { recursive: true });
-      console.log(chalk.green("✓ Config directory created successfully"));
+      console.log(chalk.green("✓ Data directory created successfully"));
     } catch (error) {
-      console.error(chalk.red("✗ Failed to create config directory"));
+      console.error(chalk.red("✗ Failed to create data directory"));
       console.error(error);
     }
   }
@@ -43,6 +49,11 @@ export async function debugStorage(): Promise<void> {
   }
 
   console.log(chalk.cyan("\nStorage Information:"));
-  console.log(chalk.gray(`Config Directory: ${CONFIG_DIR}`));
-  console.log(chalk.gray(`Storage File: ${storageFilePath}`));
+  console.log(chalk.gray(`Project Root: ${projectRoot}`));
+  console.log(
+    chalk.gray(`Data Directory: ${relative(projectRoot, CONFIG_DIR)}`)
+  );
+  console.log(
+    chalk.gray(`Storage File: ${relative(projectRoot, storageFilePath)}`)
+  );
 }
