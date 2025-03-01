@@ -1,9 +1,18 @@
 import chalk from "chalk";
 import ora from "ora";
 import readline from "readline";
+import { join, relative } from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 import { saveRating, getAverageRating, checkStorage } from "../storage.js";
 import { getCurrentUTCDateTime } from "../utils/dateTime.js";
+import { CONFIG_DIR } from "../utils/config.js";
 import type { Joke } from "../types/index.js";
+
+// Get project root directory for relative paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, "..", "..");
 
 async function getRating(joke: Joke): Promise<number> {
   const rl = readline.createInterface({
@@ -28,17 +37,19 @@ async function getRating(joke: Joke): Promise<number> {
 
 export async function fetchAndRateJoke(): Promise<void> {
   // Verify storage is working
+  const spinner = ora("Checking storage...").start();
   const storageCheck = checkStorage();
+
   if (!storageCheck) {
-    console.error(
-      chalk.red(
-        "Storage system is not working properly. Ratings will not be saved."
-      )
+    spinner.fail(
+      "Storage system is not working properly. Ratings will not be saved."
     );
     return;
   }
+  spinner.succeed("Storage system ready");
 
-  const spinner = ora("Fetching a joke...").start();
+  // Fetch joke
+  spinner.start("Fetching a joke...");
 
   try {
     const response = await fetch(
@@ -51,6 +62,7 @@ export async function fetchAndRateJoke(): Promise<void> {
     const joke = (await response.json()) as Joke;
     spinner.succeed("Got a fresh joke!");
 
+    // Display joke with formatting
     console.log("\n" + chalk.cyan("════════════════════════════════"));
     console.log(chalk.yellow("🎭 Random Joke 🎭"));
     console.log(chalk.cyan("════════════════════════════════"));
@@ -61,26 +73,44 @@ export async function fetchAndRateJoke(): Promise<void> {
     console.log(chalk.white("Punchline: ") + chalk.green(joke.punchline));
     console.log(chalk.cyan("────────────────────────────────"));
 
+    // Get and save rating
+    spinner.start("Saving rating...");
     const rating = await getRating(joke);
 
     try {
       saveRating(joke, rating);
       const avgRating = getAverageRating(joke.setup);
+      spinner.succeed("Rating saved successfully!");
 
-      console.log(chalk.green("\n✅ Rating saved successfully!"));
       console.log(
         chalk.yellow(
-          `Average rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
+          `\nAverage rating for this joke: ${avgRating.toFixed(1)}/10 ⭐`
         )
       );
 
-      // Display storage location
+      // Display storage location relative to project root
+      const storageLocation = relative(
+        projectRoot,
+        join(CONFIG_DIR, "ratings.json")
+      );
+      console.log(chalk.gray(`\nRatings are stored in: ${storageLocation}`));
+
+      // Display helpful commands
+      console.log(chalk.cyan("\nHelpful commands:"));
       console.log(
-        chalk.gray("\nRatings are stored in: ~/.config/joke-cli/ratings.json")
+        chalk.gray("• View all ratings: ") +
+          chalk.white("bun run start ratings")
+      );
+      console.log(
+        chalk.gray("• Get another joke: ") + chalk.white("bun run start get")
+      );
+      console.log(
+        chalk.gray("• Check storage: ") + chalk.white("bun run start debug")
       );
     } catch (error) {
+      spinner.fail("Failed to save rating");
       console.error(
-        chalk.red("\nFailed to save rating:"),
+        chalk.red("\nError details:"),
         error instanceof Error ? error.message : "Unknown error"
       );
     }
